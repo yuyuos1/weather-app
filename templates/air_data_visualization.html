@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>汕尾市空气大数据可视化系统</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='air_data_visualization.css') }}">
+</head>
+
+<body>
+    <!-- 注册页面 -->
+    <div id="registerPage" class="register-container" style="display: none;">
+        <div class="register-form">
+            <h3 style="text-align: center; margin-bottom: 1.5rem;">欢迎注册</h3>
+            <div class="form-group">
+                <input type="text" id="registerUsername" placeholder="请输入账号">
+            </div>
+            <div class="form-group">
+                <input type="password" id="registerPassword" placeholder="请输入密码">
+            </div>
+            <div class="form-group">
+                <select id="registerUserType" disabled>
+                    <option value="user">普通用户</option>
+                </select>
+            </div>
+            <button onclick="handleRegister()">注册</button>
+            <p style="text-align: center; margin-top: 1rem;">
+                已有账号？<a href="#" onclick="showLoginPage()">请登录</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- 登录页面 -->
+    <div id="loginPage" class="login-container">
+        <div class="login-form">
+            <h3 style="text-align: center; margin-bottom: 1.5rem;">欢迎登录</h3>
+            <div id="logoutMessage" class="alert-message"></div>
+            <div class="form-group">
+                <input type="text" id="username" placeholder="请输入账号">
+            </div>
+            <div class="form-group">
+                <input type="password" id="password" placeholder="请输入密码">
+            </div>
+            <div class="form-group">
+                <select id="userType">
+                    <option value="admin">管理员</option>
+                    <option value="user">普通用户</option>
+                </select>
+            </div>
+            <button onclick="handleLogin()">登录</button>
+            <p style="text-align: center; margin-top: 1rem;">
+                没有账号？<a href="#" onclick="showRegisterPage()">请注册</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- 仪表盘页面 -->
+    <div id="dashboardPage" class="dashboard" style="display: none;">
+        <div class="sidebar">
+            <div class="sidebar-logo">
+                <img src="{{ url_for('static', filename='weather-logo.png') }}" alt="天气Logo" style="width:140px;height:140px;">
+            </div>
+            <!-- 数据分析抽屉 -->
+            <div class="sidebar-item has-submenu" onclick="toggleDrawer()">
+                <i class="fa-solid fa-chart-line sidebar-icon"></i>
+                <span>数据分析</span>
+                <i id="drawerArrow" class="fa-solid fa-chevron-down"></i>
+            </div>
+            <div id="dataAnalysisDrawer" class="data-analysis-drawer">
+                <ul>
+                    <li onclick="showChart('aqiTrend')">AQI月度趋势</li>
+                    <li onclick="showChart('pollutantComparison')">污染物浓度对比</li>
+                    <li onclick="showChart('qualityDistribution')">质量等级分布</li>
+                    <li onclick="showChart('correlationHeatmap')">污染物相关性分析</li>
+                </ul>
+            </div>
+
+            <!-- 系统管理抽屉 -->
+            <div class="sidebar-item" onclick="toggleSystemManagementDrawer()">
+                <i class="fa-solid fa-cog sidebar-icon"></i>
+                <span>系统管理</span>
+                <i id="systemManagementArrow" class="fa-solid fa-chevron-down"></i>
+            </div>
+            <div id="systemManagementDrawer" class="system-management-drawer">
+                <ul>
+                    <li onclick="showUserManagement()">用户管理</li>
+                </ul>
+            </div>
+
+            <!-- 天气预测菜单 -->
+            <div class="sidebar-item">
+                <i class="fa-solid fa-cloud-sun sidebar-icon"></i>
+                <span onclick="showWeatherPage()">天气预测</span>
+            </div>
+
+            <!-- 其他侧边栏项 -->
+            <div class="sidebar-item">
+                <i class="fa-solid fa-user sidebar-icon"></i>
+                <span onclick="showProfilePage()">个人资料</span>
+            </div>
+            <div class="sidebar-item">
+                <i class="fa-solid fa-key sidebar-icon"></i>
+                <span onclick="showChangePasswordPage()">修改密码</span>
+            </div>
+            <div class="sidebar-item">
+                <i class="fa-solid fa-right-from-bracket sidebar-icon"></i>
+                <span onclick="handleLogout()">退出系统</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="header">
+                <div class="header-left">
+                    <img class="header-logo" src="{{ url_for('static', filename='weather-logo.png') }}" alt="Logo" style="width:50px;height:50px;">
+                    <h1 class="header-title">汕尾市空气大数据可视化系统</h1>
+                </div>
+                <div class="header-user">
+                    <img class="user-avatar" src="{{ url_for('static', filename=current_user.avatar) }}" alt="用户头像" style="width:30px;height:30px;border-radius:50%;">
+                    <span class="user-name">{{ current_user.username }}</span>
+                </div>
+            </div>
+
+            <!-- 系统首页 -->
+            <div id="homePage">
+                <h3>系统公告</h3>
+                <div id="noticeList" style="margin-top: 1rem;">
+                    <div class="system-notice">
+                        <small id="loginTime"></small>
+                        <h4>登录成功</h4>
+                        <p>欢迎登录，祝你有开心的一天</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 数据分析页面 -->
+            <div id="dataAnalysisPage" style="display: none;">
+                <h3>数据分析</h3>
+                <div style="margin-bottom: 1rem;">
+                    <label for="startDate">开始时间:</label>
+                    <input type="month" id="startDate" name="startDate">
+                    <label for="endDate">结束时间:</label>
+                    <input type="month" id="endDate" name="endDate">
+                    <button onclick="fetchChartDataWithDate()">查询</button>
+                </div>
+
+                <!-- AQI月度趋势图表 -->
+                <div id="aqiTrend" class="chart-container">
+                    <div class="chart-content">
+                        <img id="aqiTrendImg" src="" alt="AQI月度趋势">
+                    </div>
+                    <div class="analysis-section" id="aqiTrendAnalysis"></div>
+                </div>
+
+                <!-- 污染物浓度对比图表 -->
+                <div id="pollutantComparison" class="chart-container">
+                    <div class="chart-content">
+                        <img id="pollutantComparisonImg" src="" alt="污染物浓度对比">
+                    </div>
+                    <div class="analysis-section" id="pollutantComparisonAnalysis"></div>
+                </div>
+
+                <!-- 质量等级分布图表 -->
+                <div id="qualityDistribution" class="chart-container">
+                    <div class="chart-content">
+                        <img id="qualityDistributionImg" src="" alt="质量等级分布">
+                    </div>
+                    <div class="analysis-section" id="qualityDistributionAnalysis"></div>
+                </div>
+
+                <!-- 污染物相关性分析图表 -->
+                <div id="correlationHeatmap" class="chart-container">
+                    <div class="chart-content">
+                        <img id="correlationHeatmapImg" src="" alt="污染物相关性分析">
+                    </div>
+                    <div class="analysis-section" id="correlationHeatmapAnalysis"></div>
+                </div>
+            </div>
+
+            <!-- 个人资料页面 -->
+            <div id="profilePage" style="display: none;">
+                <h3>个人资料</h3>
+                <div class="form-group">
+                    <label>头像：</label>
+                    <input type="file" id="profileAvatar" accept="image/*">
+                    <img id="previewAvatar"
+                         src="{{ url_for('static', filename=current_user.avatar) }}"
+                         alt="当前头像"
+                         style="width:80px;height:80px;border-radius:50%;margin-top:10px;">
+                </div>
+                <div class="form-group">
+                    <input type="text" id="profileUsername" placeholder="用户名" value="{{ current_user.username }}" required>
+                    <small class="error-message"></small>
+                </div>
+                <button onclick="saveProfile()">保存资料</button>
+            </div>
+
+            <!-- 修改密码页面 -->
+            <div id="changePasswordPage" style="display: none;">
+                <h3>修改密码</h3>
+                <div class="form-group">
+                    <input type="password" id="currentPassword" placeholder="当前密码" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="newPassword" placeholder="新密码（3-6位）" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="confirmPassword" placeholder="确认新密码" required>
+                </div>
+                <button onclick="handleChangePassword()">保存修改</button>
+            </div>
+
+            <!-- 用户管理页面 -->
+            <div id="userManagementPage" style="display: none;">
+                <h3>用户管理</h3>
+                <div id="userList"></div>
+                <div class="form-group">
+                    <input type="text" id="newUserUsername" placeholder="新用户账号">
+                </div>
+                <div class="form-group">
+                    <input type="password" id="newUserPassword" placeholder="新用户密码">
+                </div>
+                <div class="form-group">
+                    <select id="newUserType">
+                        <option value="admin">管理员</option>
+                        <option value="user" selected>普通用户</option>
+                    </select>
+                </div>
+                <button onclick="addUser()">添加用户</button>
+            </div>
+
+            <!-- 天气预测页面 -->
+            <div id="weatherPage" style="display: none;">
+                <div class="weather-page-header">
+                    <h3><i class="fa-solid fa-cloud-sun"></i> 天气预测</h3>
+                    <p class="weather-subtitle">广东省汕尾市气情况与趋势分析</p>
+                </div>
+                
+                <!-- 当前天气卡片 -->
+                <div class="weather-current-card">
+                    <h4><i class="fa-solid fa-thermometer-half"></i> 当前天气</h4>
+                    <div id="currentWeatherContent">
+                        <div class="weather-loading">
+                            <i class="fa-solid fa-spinner fa-spin"></i> 正在加载天气数据...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 天气预报卡片 -->
+                <div class="weather-forecast-card">
+                    <h4><i class="fa-solid fa-calendar-days"></i> 15天天气预报</h4>
+                    <div id="weatherForecastContent">
+                        <div class="weather-loading">
+                            <i class="fa-solid fa-spinner fa-spin"></i> 正在加载预报数据...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 天气图表区域 -->
+                <div class="weather-charts-section">
+                    <h4><i class="fa-solid fa-chart-line"></i> 天气趋势分析</h4>
+                    <div class="chart-tabs">
+                        <button class="chart-tab active" onclick="showWeatherChart('temperature_trend')">
+                            <i class="fa-solid fa-temperature-high"></i> 温度趋势
+                        </button>
+                        <button class="chart-tab" onclick="showWeatherChart('rain_probability')">
+                            <i class="fa-solid fa-cloud-rain"></i> 降雨概率
+                        </button>
+                    </div>
+                    <div class="weather-chart-container">
+                        <canvas id="weatherChart" width="800" height="400"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='air_data_visualization.js') }}"></script>
+</body>
+
+</html>
